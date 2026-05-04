@@ -1,1 +1,2 @@
 *.env
+/assistant-app/node_modules/
