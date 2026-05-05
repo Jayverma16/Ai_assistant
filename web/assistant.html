@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jay's AI Assistant</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a24;
+    --border: #2a2a3a;
+    --accent: #7c6aff;
+    --accent2: #ff6a9a;
+    --green: #4affb4;
+    --text: #e8e8f0;
+    --muted: #6a6a8a;
+    --danger: #ff4a6a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* grid bg */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(124,106,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,106,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* header */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 48px;
+  }
+
+  .logo {
+    width: 42px;
+    height: 42px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  header h1 {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+
+  header h1 span {
+    color: var(--accent);
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    margin-left: auto;
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+
+
+  /* mode toggle */
+  .mode-toggle {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 24px;
+    width: fit-content;
+  }
+
+  .mode-btn {
+    padding: 10px 24px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .mode-btn.active {
+    background: var(--accent);
+    color: white;
+  }
+
+  /* panels */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    margin-bottom: 20px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .panel:hover { border-color: #3a3a5a; }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-header .tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--surface2);
+    color: var(--muted);
+  }
+
+  .panel-header .tag.accent { background: rgba(124,106,255,0.15); color: var(--accent); }
+  .panel-header .tag.green { background: rgba(74,255,180,0.1); color: var(--green); }
+  .panel-header .tag.pink { background: rgba(255,106,154,0.1); color: var(--accent2); }
+
+  .panel-title {
+    font-size: 15px;
+    font-weight: 700;
+    flex: 1;
+  }
+
+  .panel-body { padding: 20px; }
+
+  /* audio recorder */
+  .recorder-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 32px 20px;
+  }
+
+  .record-btn {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    background: rgba(124,106,255,0.1);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .record-btn:hover {
+    background: rgba(124,106,255,0.2);
+    transform: scale(1.05);
+  }
+
+  .record-btn.recording {
+    border-color: var(--danger);
+    background: rgba(255,74,106,0.15);
+    animation: recordPulse 1s infinite;
+  }
+
+  @keyframes recordPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255,74,106,0.4); }
+    50% { box-shadow: 0 0 0 12px rgba(255,74,106,0); }
+  }
+
+  .record-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    transition: all 0.2s;
+  }
+
+  .record-btn.recording .record-icon {
+    border-radius: 4px;
+    background: var(--danger);
+    width: 22px;
+    height: 22px;
+  }
+
+  .record-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .record-btn.recording + .record-label {
+    color: var(--danger);
+  }
+
+  /* waveform */
+  .waveform {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    height: 32px;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .waveform.active { opacity: 1; }
+
+  .wave-bar {
+    width: 3px;
+    border-radius: 2px;
+    background: var(--accent);
+    animation: wave 0.8s ease-in-out infinite;
+  }
+
+  .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+  .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+  .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+  .wave-bar:nth-child(5) { animation-delay: 0.4s; }
+  .wave-bar:nth-child(6) { animation-delay: 0.3s; }
+  .wave-bar:nth-child(7) { animation-delay: 0.2s; }
+  .wave-bar:nth-child(8) { animation-delay: 0.1s; }
+
+  @keyframes wave {
+    0%, 100% { height: 6px; }
+    50% { height: 24px; }
+  }
+
+  /* text input */
+  .text-input-area {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    padding: 16px;
+    resize: vertical;
+    min-height: 100px;
+    outline: none;
+    transition: border-color 0.2s;
+    line-height: 1.6;
+  }
+
+  .text-input-area:focus { border-color: var(--accent); }
+  .text-input-area::placeholder { color: var(--muted); }
+
+  /* transcript */
+  .transcript-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    min-height: 80px;
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--text);
+    outline: none;
+    width: 100%;
+    font-family: 'Syne', sans-serif;
+    white-space: pre-wrap;
+    cursor: text;
+    transition: border-color 0.2s;
+  }
+
+  .transcript-box:focus { border-color: var(--green); }
+
+  .transcript-box.empty {
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  .edit-hint {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .edit-hint::before {
+    content: '✎';
+    color: var(--green);
+  }
+
+  /* llama result */
+  .llama-result {
+    background: var(--surface2);
+    border-radius: 10px;
+    padding: 20px;
+    font-size: 15px;
+    line-height: 1.8;
+    color: var(--text);
+    min-height: 80px;
+    white-space: pre-wrap;
+    font-family: 'Syne', sans-serif;
+  }
+
+  .llama-result.empty {
+    color: var(--muted);
+    font-style: italic;
+    font-size: 14px;
+  }
+
+  /* buttons */
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 20px;
+    border-radius: 10px;
+    border: none;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: #9d8fff;
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .btn-green {
+    background: rgba(74,255,180,0.1);
+    color: var(--green);
+    border: 1px solid rgba(74,255,180,0.3);
+  }
+
+  .btn-green:hover:not(:disabled) {
+    background: rgba(74,255,180,0.2);
+  }
+
+  /* loading spinner */
+  .spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+
+  .btn.loading .spinner { display: block; }
+  .btn.loading .btn-text { opacity: 0.7; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 100;
+    max-width: 300px;
+  }
+
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { border-color: var(--green); color: var(--green); }
+  .toast.error { border-color: var(--danger); color: var(--danger); }
+  .toast.info { border-color: var(--accent); color: var(--accent); }
+
+  /* audio player */
+  audio {
+    width: 100%;
+    margin-top: 12px;
+    border-radius: 8px;
+    filter: invert(1) hue-rotate(180deg);
+  }
+
+  /* memories count */
+  .memories-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 12px;
+  }
+
+  .memories-badge span {
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  /* separator */
+  .sep {
+    height: 1px;
+    background: var(--border);
+    margin: 16px 0;
+  }
+
+  /* context memories */
+  .memory-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(124,106,255,0.08);
+    border: 1px solid rgba(124,106,255,0.2);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent);
+    margin: 3px;
+  }
+
+  .memory-chip .sim {
+    color: var(--muted);
+    font-size: 10px;
+  }
+
+  .memories-used {
+    margin-bottom: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="logo">🧠</div>
+    <div>
+      <h1>Jay's <span>Assistant</span></h1>
+      <div style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:2px">voice · memory · planning</div>
+    </div>
+    <div class="status-dot" id="statusDot"></div>
+  </header>
+
+  <!-- mode toggle -->
+  <div class="mode-toggle">
+    <button class="mode-btn active" onclick="setMode('voice')" id="voiceBtn">🎙 Voice</button>
+    <button class="mode-btn" onclick="setMode('text')" id="textBtn">✏️ Text</button>
+  </div>
+
+  <!-- INPUT PANEL -->
+  <div class="panel" id="inputPanel">
+    <div class="panel-header">
+      <span class="tag accent">01</span>
+      <span class="panel-title">Input</span>
+      <span class="tag" id="inputModeTag">voice recording</span>
+    </div>
+    <div class="panel-body">
+
+      <!-- voice mode -->
+      <div id="voiceMode">
+        <div class="recorder-area">
+          <button class="record-btn" id="recordBtn" onclick="toggleRecord()">
+            <div class="record-icon"></div>
+          </button>
+          <div class="record-label" id="recordLabel">Click to record</div>
+          <div class="waveform" id="waveform">
+            <div class="wave-bar" style="height:8px"></div>
+            <div class="wave-bar" style="height:14px"></div>
+            <div class="wave-bar" style="height:20px"></div>
+            <div class="wave-bar" style="height:16px"></div>
+            <div class="wave-bar" style="height:24px"></div>
+            <div class="wave-bar" style="height:16px"></div>
+            <div class="wave-bar" style="height:20px"></div>
+            <div class="wave-bar" style="height:14px"></div>
+            <div class="wave-bar" style="height:8px"></div>
+          </div>
+        </div>
+        <div id="audioPlayerWrap" style="display:none">
+          <audio id="audioPlayer" controls></audio>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="transcribeBtn" onclick="transcribeAudio()" disabled>
+            <div class="spinner"></div>
+            <span class="btn-text">🔤 Transcribe</span>
+          </button>
+          <button class="btn btn-secondary" id="saveAudioBtn" onclick="saveAudio()" disabled>
+            <div class="spinner"></div>
+            <span class="btn-text">💾 Save to Cloud</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- text mode -->
+      <div id="textMode" style="display:none">
+        <textarea class="text-input-area" id="textInput" placeholder="Type your note, reminder, or question in Hindi or English..."></textarea>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="useTextInput()">
+            <span class="btn-text">→ Use This Text</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- TRANSCRIPT PANEL -->
+  <div class="panel" id="transcriptPanel">
+    <div class="panel-header">
+      <span class="tag green">02</span>
+      <span class="panel-title">Transcript</span>
+      <span class="tag">editable</span>
+    </div>
+    <div class="panel-body">
+      <div
+        class="transcript-box empty"
+        id="transcriptBox"
+        contenteditable="true"
+        data-placeholder="Transcript will appear here after recording..."
+        oninput="onTranscriptEdit()"
+      >Transcript will appear here after recording...</div>
+      <div class="edit-hint">Click to edit and correct the transcript</div>
+      <div class="btn-row">
+        <button class="btn btn-green" id="planBtn" onclick="runLlama()" disabled>
+          <div class="spinner"></div>
+          <span class="btn-text">🦙 Plan with Llama</span>
+        </button>
+        <button class="btn btn-secondary" id="saveMemoryBtn" onclick="saveToMemory()" disabled>
+          <div class="spinner"></div>
+          <span class="btn-text">🧠 Save to Memory</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LLAMA PANEL -->
+  <div class="panel" id="llamaPanel">
+    <div class="panel-header">
+      <span class="tag pink">03</span>
+      <span class="panel-title">Llama Planning & Summary</span>
+      <span class="tag" id="contextTag">no context</span>
+    </div>
+    <div class="panel-body">
+      <div class="memories-used" id="memoriesUsed" style="display:none"></div>
+      <div class="llama-result empty" id="llamaResult">
+        Run "Plan with Llama" to get AI planning and summarization based on your notes and memory...
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  let mediaRecorder, audioChunks = [], audioBlob = null;
+  let currentMode = 'voice';
+  let transcriptText = '';
+  let isRecording = false;
+
+  const API = 'http://localhost:8000';
+
+  function setMode(mode) {
+    currentMode = mode;
+    document.getElementById('voiceMode').style.display = mode === 'voice' ? 'block' : 'none';
+    document.getElementById('textMode').style.display = mode === 'text' ? 'block' : 'none';
+    document.getElementById('voiceBtn').classList.toggle('active', mode === 'voice');
+    document.getElementById('textBtn').classList.toggle('active', mode === 'text');
+    document.getElementById('inputModeTag').textContent = mode === 'voice' ? 'voice recording' : 'text input';
+  }
+
+  async function toggleRecord() {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  }
+
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunks = [];
+      mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+      mediaRecorder.onstop = () => {
+        audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+        const url = URL.createObjectURL(audioBlob);
+        document.getElementById('audioPlayer').src = url;
+        document.getElementById('audioPlayerWrap').style.display = 'block';
+        document.getElementById('transcribeBtn').disabled = false;
+        document.getElementById('saveAudioBtn').disabled = false;
+        stream.getTracks().forEach(t => t.stop());
+      };
+      mediaRecorder.start();
+      isRecording = true;
+      document.getElementById('recordBtn').classList.add('recording');
+      document.getElementById('recordLabel').textContent = 'Recording... click to stop';
+      document.getElementById('waveform').classList.add('active');
+    } catch(e) {
+      showToast('Microphone access denied', 'error');
+    }
+  }
+
+  function stopRecording() {
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop();
+      isRecording = false;
+      document.getElementById('recordBtn').classList.remove('recording');
+      document.getElementById('recordLabel').textContent = 'Click to record again';
+      document.getElementById('waveform').classList.remove('active');
+    }
+  }
+
+  async function transcribeAudio() {
+    if (!audioBlob) return showToast('No audio recorded', 'error');
+    setLoading('transcribeBtn', true);
+    try {
+      const formData = new FormData();
+      formData.append('file', audioBlob, 'recording.wav');
+      const res = await fetch(`${API}/transcribe`, { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.text) {
+        setTranscript(data.text);
+        showToast('Transcribed!', 'success');
+      } else {
+        showToast('Transcription failed', 'error');
+      }
+    } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    setLoading('transcribeBtn', false);
+  }
+
+  async function saveAudio() {
+    if (!audioBlob) return showToast('No audio to save', 'error');
+    setLoading('saveAudioBtn', true);
+    try {
+      const formData = new FormData();
+      formData.append('file', audioBlob, 'recording.wav');
+      const res = await fetch(`${API}/save-audio`, { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.url) {
+        showToast('Audio saved!', 'success');
+      } else {
+        showToast('Save failed', 'error');
+      }
+    } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    setLoading('saveAudioBtn', false);
+  }
+
+  function useTextInput() {
+    const text = document.getElementById('textInput').value.trim();
+    if (!text) return showToast('Enter some text first', 'error');
+    setTranscript(text);
+    showToast('Text loaded as transcript', 'info');
+  }
+
+  function setTranscript(text) {
+    transcriptText = text;
+    const box = document.getElementById('transcriptBox');
+    box.textContent = text;
+    box.classList.remove('empty');
+    document.getElementById('planBtn').disabled = false;
+    document.getElementById('saveMemoryBtn').disabled = false;
+  }
+
+  function onTranscriptEdit() {
+    const box = document.getElementById('transcriptBox');
+    transcriptText = box.textContent.trim();
+    const hasText = transcriptText.length > 0;
+    document.getElementById('planBtn').disabled = !hasText;
+    document.getElementById('saveMemoryBtn').disabled = !hasText;
+  }
+
+  async function saveToMemory() {
+    const text = document.getElementById('transcriptBox').textContent.trim();
+    if (!text) return showToast('No transcript to save', 'error');
+    setLoading('saveMemoryBtn', true);
+    try {
+      const res = await fetch(`${API}/embed`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, audio_url: '' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Saved to memory!', 'success');
+      } else {
+        showToast('Error: ' + JSON.stringify(data).slice(0, 100), 'error');
+      }
+    } catch(e) { showToast('Error: ' + e.message, 'error'); }
+    setLoading('saveMemoryBtn', false);
+  }
+
+  async function runLlama() {
+    const text = document.getElementById('transcriptBox').textContent.trim();
+    if (!text) return showToast('No transcript to plan with', 'error');
+
+    setLoading('planBtn', true);
+    document.getElementById('llamaResult').classList.add('empty');
+    document.getElementById('llamaResult').textContent = 'Fetching memories & thinking...';
+    document.getElementById('memoriesUsed').style.display = 'none';
+
+    try {
+      const res = await fetch(`${API}/plan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, match_count: 5 })
+      });
+      const data = await res.json();
+
+      // show memory chips
+      const memories = data.memories || [];
+      if (memories.length > 0) {
+        const wrap = document.getElementById('memoriesUsed');
+        wrap.style.display = 'flex';
+        wrap.innerHTML = memories.map(m =>
+          `<span class="memory-chip">${m.text.slice(0, 40)}... <span class="sim">${(m.similarity * 100).toFixed(0)}%</span></span>`
+        ).join('');
+        document.getElementById('contextTag').textContent = `${memories.length} memories used`;
+      } else {
+        document.getElementById('contextTag').textContent = 'no context';
+      }
+
+      document.getElementById('llamaResult').textContent = data.answer;
+      document.getElementById('llamaResult').classList.remove('empty');
+      showToast('Planning complete!', 'success');
+
+    } catch(e) {
+      showToast('Error: ' + e.message, 'error');
+      document.getElementById('llamaResult').textContent = 'Error: ' + e.message;
+    }
+
+    setLoading('planBtn', false);
+  }
+
+  function setLoading(btnId, loading) {
+    const btn = document.getElementById(btnId);
+    btn.classList.toggle('loading', loading);
+    btn.disabled = loading;
+  }
+
+  function showToast(msg, type = 'info') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast show ${type}`;
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+</script>
+</body>
+</html>
