@@ -1,2 +1,4 @@
 *.env
 /assistant-app/node_modules/
+__pycache__/app.cpython-312.pyc
+__pycache__/whisper.cpython-312.pyc
