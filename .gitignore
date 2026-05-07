@@ -2,3 +2,6 @@
 /assistant-app/node_modules/
 __pycache__/app.cpython-312.pyc
 __pycache__/whisper.cpython-312.pyc
+assistant-app/constants/api.ts
+supabase/.temp/cli-latest
+supabase/.temp/linked-project.json
