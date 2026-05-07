@@ -5,7 +5,6 @@
     "version": "1.0.0",
     "scheme": "jay-assistant",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "splash": {
       "resizeMode": "contain",
       "backgroundColor": "#0a0a0f"
