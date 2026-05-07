@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import * as FileSystem from 'expo-file-system/legacy';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView,
@@ -7,7 +8,7 @@ import {
 import { Audio } from 'expo-av';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { API_BASE } from '../constants/api';
+import { API, supabase,SUPABASE_ANON_KEY } from '../constants/api';
 
 // ── theme ─────────────────────────────────────────────────────
 const C = {
@@ -34,6 +35,7 @@ export default function HomeScreen() {
   const [transcript, setTranscript]   = useState('');
   const [llamaResult, setLlamaResult] = useState('');
   const [memories, setMemories]       = useState<any[]>([]);
+  const [uploadedAudioUrl, setUploadedAudioUrl] = useState('');
 
   const [loadingTranscribe, setLoadingTranscribe] = useState(false);
   const [loadingSave, setLoadingSave]             = useState(false);
@@ -88,88 +90,198 @@ export default function HomeScreen() {
 
   // ── API calls ────────────────────────────────────────────────
 
-  async function transcribeAudio() {
-    if (!audioUri) return Alert.alert('No audio', 'Record something first');
-    setLoadingTranscribe(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', { uri: audioUri, name: 'recording.wav', type: 'audio/wav' } as any);
-
-      const res  = await fetch(`${API_BASE}/transcribe`, { method: 'POST', body: formData });
-      const data = await res.json();
-      if (data.text) {
-        setTranscript(data.text);
-      } else {
-        Alert.alert('Error', 'Transcription failed');
-      }
-    } catch (e: any) {
-      Alert.alert('Error', e.message);
-    }
-    setLoadingTranscribe(false);
+async function transcribeAudio() {
+  if (!audioUri) {
+    return Alert.alert('No audio', 'Record something first');
   }
 
-  async function saveAudio() {
-    if (!audioUri) return Alert.alert('No audio', 'Record something first');
-    setLoadingSave(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', { uri: audioUri, name: 'recording.wav', type: 'audio/wav' } as any);
+  setLoadingTranscribe(true);
 
-      const res  = await fetch(`${API_BASE}/save-audio`, { method: 'POST', body: formData });
-      const data = await res.json();
-      if (data.url) {
-        Alert.alert('Saved!', 'Audio saved to Supabase ✓');
-      } else {
-        Alert.alert('Error', 'Save failed');
-      }
-    } catch (e: any) {
-      Alert.alert('Error', e.message);
+  try {
+    const formData = new FormData();
+
+    formData.append('file', {
+      uri: audioUri,
+      name: 'recording.wav',
+      type: 'audio/wav',
+    } as any);
+
+    const res = await fetch(API.transcribe, {
+      method: 'POST',
+
+      headers: {
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        apikey: SUPABASE_ANON_KEY,
+      },
+
+      body: formData,
+    });
+    const data = await res.json();
+    console.log(data);
+
+    if (data.text) {
+      setTranscript(data.text);
+    } else {
+      Alert.alert('Error', 'Transcription failed');
     }
-    setLoadingSave(false);
+  } catch (e: any) {
+    Alert.alert('Error', e.message);
   }
 
-  async function saveToMemory() {
-    const text = transcript.trim();
-    if (!text) return Alert.alert('No transcript', 'Transcribe audio first');
-    setLoadingMemory(true);
-    try {
-      const res  = await fetch(`${API_BASE}/embed`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, audio_url: audioUri || '' })
-      });
-      const data = await res.json();
-      if (data.success) {
-        Alert.alert('Saved!', 'Added to memory ✓');
-      } else {
-        Alert.alert('Error', JSON.stringify(data).slice(0, 100));
-      }
-    } catch (e: any) {
-      Alert.alert('Error', e.message);
-    }
-    setLoadingMemory(false);
+  setLoadingTranscribe(false);
+}
+
+
+async function saveAudio() {
+  if (!audioUri) {
+    return Alert.alert(
+      'No audio',
+      'Record something first'
+    );
   }
 
-  async function runPlan() {
-    const text = transcript.trim();
-    if (!text) return Alert.alert('No transcript', 'Add some text first');
-    setLoadingPlan(true);
-    setLlamaResult('');
-    setMemories([]);
-    try {
-      const res  = await fetch(`${API_BASE}/plan`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, match_count: 5 })
-      });
-      const data = await res.json();
-      setLlamaResult(data.answer || '');
-      setMemories(data.memories || []);
-    } catch (e: any) {
-      Alert.alert('Error', e.message);
+  setLoadingSave(true);
+
+  try {
+    const base64 =
+      await FileSystem.readAsStringAsync(
+        audioUri,
+        {
+          encoding: 'base64',
+        }
+      );
+
+    const filename =
+      `rec_${Date.now()}.wav`;
+
+    // Convert base64 to ArrayBuffer
+
+    const binaryString = atob(base64);
+
+    const len = binaryString.length;
+
+    const bytes = new Uint8Array(len);
+
+    for (let i = 0; i < len; i++) {
+      bytes[i] =
+        binaryString.charCodeAt(i);
     }
-    setLoadingPlan(false);
+
+    const { error } =
+      await supabase.storage
+        .from('audio')
+        .upload(
+          filename,
+          bytes,
+          {
+            contentType:
+              'audio/wav',
+          }
+        );
+
+    if (error) {
+      throw error;
+    }
+
+    const { data } =
+      supabase.storage
+        .from('audio')
+        .getPublicUrl(filename);
+
+    setUploadedAudioUrl(
+      data.publicUrl
+    );
+
+    Alert.alert(
+      'Saved!',
+      'Audio uploaded successfully'
+    );
+
+  } catch (e: any) {
+    console.log(e);
+
+    Alert.alert(
+      'Error',
+      e.message
+    );
   }
+
+  setLoadingSave(false);
+}
+
+
+
+async function saveToMemory() {
+  const text = transcript.trim();
+
+  if (!text) {
+    return Alert.alert('No transcript', 'Transcribe audio first');
+  }
+
+  setLoadingMemory(true);
+
+  try {
+    const res = await fetch(API.embed, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        apikey: SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({
+        text,
+        audio_url: '',
+      }),
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      Alert.alert('Saved!', 'Added to memory');
+    } else {
+      Alert.alert('Error', JSON.stringify(data));
+    }
+  } catch (e: any) {
+    Alert.alert('Error', e.message);
+  }
+
+  setLoadingMemory(false);
+}
+
+async function runPlan() {
+  const text = transcript.trim();
+
+  if (!text) {
+    return Alert.alert('No transcript', 'Add some text first');
+  }
+
+  setLoadingPlan(true);
+  setLlamaResult('');
+  setMemories([]);
+
+  try {
+    const res = await fetch(API.plan, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text,
+        match_count: 5,
+      }),
+    });
+
+    const data = await res.json();
+
+    setLlamaResult(data.answer || '');
+    setMemories(data.memories || []);
+
+  } catch (e: any) {
+    Alert.alert('Error', e.message);
+  }
+
+  setLoadingPlan(false);
+}
 
   function useTextAsTranscript() {
     if (!textInput.trim()) return Alert.alert('Empty', 'Type something first');
