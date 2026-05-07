@@ -260,11 +260,20 @@ async function runPlan() {
   setMemories([]);
 
   try {
-    const res = await fetch(API.plan, {
+
+const res = await fetch(API.plan, {
       method: 'POST',
+
       headers: {
         'Content-Type': 'application/json',
+
+        Authorization:
+          `Bearer ${SUPABASE_ANON_KEY}`,
+
+        apikey:
+          SUPABASE_ANON_KEY,
       },
+
       body: JSON.stringify({
         text,
         match_count: 5,
