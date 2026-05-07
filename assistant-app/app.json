@@ -15,7 +15,12 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#0a0a0f"
-      }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "package": "com.jverma16.jayassistant"
     },
     "plugins": [
       "expo-router",
@@ -30,6 +35,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "20f7dca8-adf9-466f-bffd-9d517a474e3d"
+      }
     }
   }
 }
